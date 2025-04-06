@@ -99,6 +99,35 @@ async function onStorageChange() {
 
   browser.storage.onChanged.addListener(onStorageChange);
 
+  //
+  //
+  browser.webRequest.onHeadersReceived.addListener(
+    (e) => {
+      // this seems to work the filter.ondata/stop
+      // seems to get the wasActive that is set here
+      /**/ if (
+        e.responseHeaders.some(
+          (h) =>
+            h.name.toLowerCase() === "content-type" && h.value !== "text/html",
+        )
+      ) {
+        wasActive.add(e.tabId);
+      } /**/
+      /* doesnt work ... onHeadersReceived is to late ... onBeforeRequest happens faster
+      if (awaitsActivation.has(e.tabId)) {
+        return {
+          responseHeaders: [{ name: "content-type", value: "text/html" }],
+        };
+      }
+        */
+    },
+    {
+      urls: ["<all_urls>"],
+      types: ["main_frame"],
+    },
+    ["blocking", "responseHeaders"],
+  );
+
   browser.webRequest.onBeforeRequest.addListener(
     async (e) => {
       if (!manually_disabled) {
@@ -120,18 +149,62 @@ async function onStorageChange() {
                   e.requestId,
                 );
 
+                const data = [];
+                // just save the chunks
                 filter.ondata = (event) => {
-                  let str = decoder.decode(event.data, { stream: true });
-                  const doc = parser.parseFromString(str, "text/html");
-                  const docTitle = doc.title
-                    .split("/[<>\\ ]/") // little bit of sanatizing
-                    .join(" ")
-                    .replaceAll(/\s+/g, " ");
-                  // https://validator.w3.org/nu/ => No errors or warnings to show.
-                  str = `<!DOCTYPE html><html lang="en"><head><title>${docTitle}</title></head><body><h1>Loading now, please wait...</h1></body></html>`;
-                  filter.write(encoder.encode(str));
+                  data.push(event.data);
+                };
+
+                // lets get creative
+                filter.onstop = (event) => {
+                  let str = "";
+                  if (data.length === 1) {
+                    str = decoder.decode(data[0]);
+                  } else {
+                    for (let i = 0; i < data.length; i++) {
+                      const stream = i !== data.length - 1;
+                      str += decoder.decode(data[i], { stream });
+                    }
+                  }
+
+                  // lets check again if the tab was active, since we use onHeadersReceived
+                  // to determine if the main_frame content-type is not a text/html page
+                  if (!wasActive.has(e.tabId)) {
+                    try {
+                      const doc = parser.parseFromString(str, "text/html");
+
+                      // error handling https://developer.mozilla.org/en-US/docs/Web/API/DOMParser/parseFromString
+                      // this error check is pretty useless, ... even if the data is binary image data ... it doenst throws or
+                      // indicates an error ... oh well, lets leave it for now
+                      const errorNode = doc.querySelector("parsererror");
+                      if (errorNode) {
+                        console.error(errorNode.innerText);
+                      } else {
+                        if (doc.body.childElementCount > 1) {
+                          // parsing succeeded
+                          if (doc.title) {
+                            const docTitle = doc.title
+                              .split("/[<>\\ ]/") // little bit of sanatizing
+                              .join(" ")
+                              .replaceAll(/\s+/g, " ");
+                            // https://validator.w3.org/nu/ => No errors or warnings to show.
+                            str = `<!DOCTYPE html><html lang="en"><head><title>${docTitle}</title></head><body><h1>Loading now, please wait...</h1></body></html>`;
+                            filter.write(encoder.encode(str));
+                            filter.close(); // close filter ... disconnect would allow extra data, which we dont want
+                          }
+                        }
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }
+                  //filter.write(encoder.encode(str));
+                  for (let i = 0; i < data.length; i++) {
+                    filter.write(data[i]);
+                  }
                   filter.close(); // close filter ... disconnect would allow extra data, which we dont want
                 };
+
                 // dont add to wasActive here
                 return;
               }
