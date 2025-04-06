@@ -1,0 +1,28 @@
+{
+  "author": "igorlogius",
+  "homepage_url": "https://github.com/igorlogius/load-background-tabs-on-select",
+  "description": "Prevents tabs which are opend in the background from loading until they have been manually activated once",
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_area": "navbar"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "128": "icon.png"
+  },
+  "manifest_version": 2,
+  "name": "Dont Load Background Tabs",
+  "options_ui": {
+    "page": "options.html"
+  },
+  "permissions": ["storage", "webRequest", "webRequestBlocking", "<all_urls>"],
+  "version": "1.3.15"
+}
