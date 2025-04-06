@@ -133,7 +133,7 @@ async function onStorageChange() {
       if (!manually_disabled) {
         if (!wasActive.has(e.tabId)) {
           const reqTab = await browser.tabs.get(e.tabId);
-          if (!reqTab.active) {
+          if (!reqTab.active && reqTab.openerTabId) {
             const mre = matchesRegEx(e.url);
 
             if (
