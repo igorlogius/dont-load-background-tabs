@@ -1,3 +1,4 @@
-if (document.body.textContent === "Loading now, please wait...") {
-  browser.runtime.sendMessage("ready");
-}
+browser.runtime.sendMessage({
+  bodyText: document.body.textContent.slice(0, 30),
+  url: document.location.href,
+});
