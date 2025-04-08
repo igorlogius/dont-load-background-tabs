@@ -1,20 +1,13 @@
 {
   "author": "igorlogius",
   "homepage_url": "https://github.com/igorlogius/dont-load-background-tabs",
-  "description": "iPrevents background tabs from loading until they have been activated",
+  "description": "Prevents background tabs from loading until they have been activated",
   "background": {
     "scripts": ["background.js"]
   },
   "browser_action": {
     "default_area": "navbar"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    }
-  ],
   "icons": {
     "128": "icon.png"
   },
@@ -24,5 +17,5 @@
     "page": "options.html"
   },
   "permissions": ["storage", "webRequest", "webRequestBlocking", "<all_urls>"],
-  "version": "1.3.19"
+  "version": "1.3.20"
 }
