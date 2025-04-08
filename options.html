@@ -8,11 +8,7 @@
     <fieldset>
       <legend>Operation Mode</legend>
       <abbr
-        title="By enabling this option some small amount of data will be loaded via the network when a background tab is created. In most cases this is enough to provide the background tabs with a readable title and allow other addons to perceive the background tabs as fully loaded, which is necessary for some other tab managment addons like OneTab or TabStash to work as expected."
-        ><span> Preload (?) <input id="doPreload" type="checkbox" /></span
-      ></abbr>
-      <abbr
-        title="By enabling this option the textarea below will act as a Blacklist, meaning that tabs that match any of the entries will not load instead of allowed loading which is the default"
+        title="This option toggles whitelist (unchecked) (will only allow matching tabs to load) and blacklist (checked) (will only prevent matching tabs from loading)"
         ><span> Blacklist (?) <input id="mode" type="checkbox" /></span
       ></abbr>
       <textarea

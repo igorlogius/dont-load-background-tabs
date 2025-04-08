@@ -2,16 +2,18 @@
 
 let wasActive = new Set();
 let awaitsActivation = new Map();
-let wakeUpAlarmId;
+//let wakeUpAlarmId;
 let regexList;
 let mode;
 
+/*
 // >>> preload
 const bodyText = "Loading now, please wait...";
 let decoder;
 let encoder;
 let parser;
 // <<<
+*/
 
 async function getFromStorage(type, id, fallback) {
   let tmp = await browser.storage.local.get(id);
@@ -50,13 +52,17 @@ function matchesRegEx(url) {
   return false;
 }
 
+/*
 function onMessage(message, sender) {
+  console.debug("onMessage");
   if (message.bodyText.startsWith(bodyText)) {
     awaitsActivation.set(sender.tab.id, message.url);
   }
 }
+*/
 
 function onRemoved(tabId) {
+  //console.debug("onRemoved");
   if (wasActive.has(tabId)) {
     wasActive.delete(tabId);
   }
@@ -66,6 +72,7 @@ function onRemoved(tabId) {
 }
 
 async function onActivated(activeInfo) {
+  //console.debug("onActivated");
   if (!wasActive.has(activeInfo.tabId)) {
     wasActive.add(activeInfo.tabId);
     const url = awaitsActivation.get(activeInfo.tabId);
@@ -79,6 +86,7 @@ async function onActivated(activeInfo) {
 }
 
 async function onBeforeRequest(e) {
+  //console.debug("onBeforeRequest");
   if (!wasActive.has(e.tabId)) {
     const mre = matchesRegEx(e.url);
 
@@ -86,6 +94,7 @@ async function onBeforeRequest(e) {
       (mode && mre) || // blacklist(true) => matches are not allowed to load
       (!mode && !mre) // whitelist(false) => matches are allowed to load <=> no match => not allowed
     ) {
+      //console.debug("onBeforeRequest:awaitsActivation", e.tabId, e.url);
       awaitsActivation.set(e.tabId, e.url);
       return { cancel: true };
     }
@@ -93,7 +102,9 @@ async function onBeforeRequest(e) {
   }
 }
 
+/*
 async function onBeforeRequestPreload(e) {
+  console.debug("onBeforeRequestPreload");
   if (!wasActive.has(e.tabId)) {
     const mre = matchesRegEx(e.url);
 
@@ -163,17 +174,32 @@ async function onBeforeRequestPreload(e) {
     wasActive.add(e.tabId);
   }
 }
+*/
 
 async function onStorageChange() {
   // shutdown
 
-  clearInterval(wakeUpAlarmId);
+  //clearInterval(wakeUpAlarmId);
 
-  browser.tabs.onActivated.removeListener(onActivated);
-  browser.webRequest.onBeforeRequest.removeListener(onBeforeRequest);
-  browser.webRequest.onBeforeRequest.removeListener(onBeforeRequestPreload);
-  browser.tabs.onRemoved.removeListener(onRemoved);
-  browser.runtime.onMessage.removeListener(onMessage);
+  if (browser.tabs.onActivated.hasListener(onActivated)) {
+    browser.tabs.onActivated.removeListener(onActivated);
+  }
+  if (browser.webRequest.onBeforeRequest.hasListener(onBeforeRequest)) {
+    browser.webRequest.onBeforeRequest.removeListener(onBeforeRequest);
+  }
+  /*
+  if (browser.webRequest.onBeforeRequest.hasListener(onBeforeRequestPreload)) {
+    browser.webRequest.onBeforeRequest.removeListener(onBeforeRequestPreload);
+  }
+*/
+  if (browser.tabs.onRemoved.hasListener(onRemoved)) {
+    browser.tabs.onRemoved.removeListener(onRemoved);
+  }
+  /*
+  if (browser.runtime.onMessage.hasListener(onMessage)) {
+    browser.runtime.onMessage.removeListener(onMessage);
+  }
+*/
 
   wasActive.clear();
   awaitsActivation.clear();
@@ -207,31 +233,50 @@ async function onStorageChange() {
       color: [0, 115, 0, 115],
     });
 
-    browser.tabs.onRemoved.addListener(onRemoved);
-    browser.tabs.onActivated.addListener(onActivated);
+    if (!browser.tabs.onRemoved.hasListener(onRemoved)) {
+      browser.tabs.onRemoved.addListener(onRemoved);
+    }
 
-    const doPreload = await getFromStorage("boolean", "doPreload", false);
-    if (!doPreload) {
+    //    const doPreload = await getFromStorage("boolean", "doPreload", false);
+    //    if (!doPreload) {
+    if (!browser.tabs.onActivated.hasListener(onActivated)) {
+      browser.tabs.onActivated.addListener(onActivated);
+    }
+    if (!browser.webRequest.onBeforeRequest.hasListener(onBeforeRequest)) {
       browser.webRequest.onBeforeRequest.addListener(
         onBeforeRequest,
         { urls: ["<all_urls>"], types: ["main_frame"] },
         ["blocking"],
       );
-    } else {
-      browser.runtime.onMessage.addListener(onMessage);
+    }
+    //    }
+
+    /*
+else {
+      if (!browser.runtime.onMessage.hasListener(onMessage)) {
+        browser.runtime.onMessage.addListener(onMessage);
+      }
       decoder = new TextDecoder("utf-8");
       encoder = new TextEncoder();
       parser = new DOMParser();
-      browser.webRequest.onBeforeRequest.addListener(
-        onBeforeRequestPreload,
-        { urls: ["<all_urls>"], types: ["main_frame"] },
-        ["blocking"],
-      );
+      if (
+        !browser.webRequest.onBeforeRequest.hasListener(onBeforeRequestPreload)
+      ) {
+        browser.webRequest.onBeforeRequest.addListener(
+          onBeforeRequestPreload,
+          { urls: ["<all_urls>"], types: ["main_frame"] },
+          ["blocking"],
+        );
+      }
     }
+*/
 
+    /*
     // WORKAROUND: onActivated does not fire for embedded browser
     wakeUpAlarmId = setInterval(async () => {
+      console.debug("wakeUp");
       for (const tab of await browser.tabs.query({ active: true })) {
+        console.debug(tab.id, tab.url, awaitsActivation);
         const url = awaitsActivation.get(tab.id);
         if (url) {
           awaitsActivation.delete(tab.id);
@@ -241,7 +286,8 @@ async function onStorageChange() {
           });
         }
       }
-    }, 15000);
+    }, 10000);
+*/
   }
 }
 
@@ -263,3 +309,9 @@ async function onStorageChange() {
 
   browser.storage.onChanged.addListener(onStorageChange);
 })();
+
+async function handleInstalled(details) {
+  await onStorageChange();
+}
+
+browser.runtime.onInstalled.addListener(handleInstalled);
